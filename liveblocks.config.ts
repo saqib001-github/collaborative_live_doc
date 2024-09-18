@@ -18,11 +18,12 @@ declare global {
     UserMeta: {
       id: string;
       info: {
-        id: string;
-        name: string;
-        email: string;
+        id:string;
+        name:string;
+        email:string;
         avatar: string;
         color: string;
+        // Example properties, for useSelf, useUser, useOthers, etc.
       };
     };
 
