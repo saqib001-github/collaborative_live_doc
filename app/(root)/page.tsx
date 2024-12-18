@@ -1,10 +1,10 @@
 import AddDocumentBtn from '@/components/AddDocumentBtn';
 import { DeleteModal } from '@/components/DeleteModal';
-import Header from '@/components/Header'
+import Header from '@/components/Header';
 import Notifications from '@/components/Notifications';
 import { getDocuments } from '@/lib/actions/room.actions';
 import { dateConverter } from '@/lib/utils';
-import { SignedIn, UserButton } from '@clerk/nextjs'
+import { SignedIn, UserButton } from '@clerk/nextjs';
 import { currentUser } from '@clerk/nextjs/server';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -12,9 +12,26 @@ import { redirect } from 'next/navigation';
 
 const Home = async () => {
   const clerkUser = await currentUser();
-  if(!clerkUser) redirect('/sign-in');
 
-  const roomDocuments = await getDocuments(clerkUser.emailAddresses[0].emailAddress);
+  // Redirect to sign-in page if not authenticated
+  if (!clerkUser) redirect('/sign-in');
+
+  // Extract email address safely
+  const email = clerkUser.emailAddresses?.[0]?.emailAddress;
+  if (!email) {
+    console.error('User email not found');
+    redirect('/sign-in'); // Redirect if no email
+  }
+
+  // Fetch documents and handle potential errors
+  let roomDocuments = { data: [] };
+  try {
+    roomDocuments = await getDocuments(email);
+  } catch (error) {
+    console.error('Failed to fetch documents:', error);
+  }
+
+  const documents = roomDocuments.data || [];
 
   return (
     <main className="home-container">
@@ -27,21 +44,18 @@ const Home = async () => {
         </div>
       </Header>
 
-      {roomDocuments.data.length > 0 ? (
+      {documents.length > 0 ? (
         <div className="document-list-container">
           <div className="document-list-title">
             <h3 className="text-28-semibold">All documents</h3>
-            <AddDocumentBtn 
-              userId={clerkUser.id}
-              email={clerkUser.emailAddresses[0].emailAddress}
-            />
+            <AddDocumentBtn userId={clerkUser.id} email={email} />
           </div>
           <ul className="document-ul">
-            {roomDocuments.data.map(({ id, metadata, createdAt }: any) => (
+            {documents.map(({ id, metadata, createdAt }: any) => (
               <li key={id} className="document-list-item">
                 <Link href={`/documents/${id}`} className="flex flex-1 items-center gap-4">
                   <div className="hidden rounded-md bg-dark-500 p-2 sm:block">
-                    <Image 
+                    <Image
                       src="/assets/icons/doc.svg"
                       alt="file"
                       width={40}
@@ -49,8 +63,10 @@ const Home = async () => {
                     />
                   </div>
                   <div className="space-y-1">
-                    <p className="line-clamp-1 text-lg">{metadata.title}</p>
-                    <p className="text-sm font-light text-blue-100">Created about {dateConverter(createdAt)}</p>
+                    <p className="line-clamp-1 text-lg">{metadata?.title || 'Untitled Document'}</p>
+                    <p className="text-sm font-light text-blue-100">
+                      Created about {dateConverter(createdAt)}
+                    </p>
                   </div>
                 </Link>
                 <DeleteModal roomId={id} />
@@ -58,24 +74,21 @@ const Home = async () => {
             ))}
           </ul>
         </div>
-      ): (
+      ) : (
         <div className="document-list-empty">
-          <Image 
+          <Image
             src="/assets/icons/doc.svg"
             alt="Document"
             width={40}
             height={40}
             className="mx-auto"
           />
-
-          <AddDocumentBtn 
-            userId={clerkUser.id}
-            email={clerkUser.emailAddresses[0].emailAddress}
-          />
+          <p className="text-center text-lg text-gray-500">No documents found.</p>
+          <AddDocumentBtn userId={clerkUser.id} email={email} />
         </div>
       )}
     </main>
-  )
-}
+  );
+};
 
-export default Home
+export default Home;
